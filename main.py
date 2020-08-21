@@ -40,7 +40,7 @@ def load_inventory_manually():
 
 
 def load_inventory_file():
-   print('Supported file type is CSV. Expected headers below must be in the same order and are case sensitive:')
+   print('\n\nSupported file type is CSV. Expected headers below must be in the same order and are case sensitive:')
    print(' dev_type, host, user, pass ')
    inv_file = input('\n\nEnter the CSV file containing the discovery hosts: ')
    output = []
@@ -79,7 +79,10 @@ def create_report(inventory):
         for device in inventory:
             print('Probing device ', i, ' of ',len(inventory))
             i = i + 1
-            device_info = get_device_info(device['dev_type'],device['host'],device['user'],device['pass'])
+            try:
+                device_info = get_device_info(device['dev_type'],device['host'],device['user'],device['pass'])
+            except ssh_exception.NetmikoTimeoutException:
+                device_info ={'hardware':'connection failed', 'software':'connection failed','hostname':device['host']}
             print(device_info)
             writer.writerow(device_info)
 
