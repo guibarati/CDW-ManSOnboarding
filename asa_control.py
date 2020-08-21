@@ -1,9 +1,12 @@
 """
-Script/Utility Name: 
-Author: 
-Version Number: 0.2
+Module Name: asa_control.py
+Author: Arlo Hollingshad & Gui Barati
+Version Number: 0.1
 Language Version: 3.6+
-Description of Function:
+Description of Module:
+This function establishes an SSH connection with the ASA object,
+issues the "show ver" command and parses the result
+
 """
 
 
@@ -37,6 +40,13 @@ def send_command(command: str, device: cisco.CiscoAsaSSH) -> list:
 
 
 def show_ver(device: cisco.CiscoAsaSSH):
+    """
+    Calls the 'send_command' function and parses the result to extract
+    hardware model, software version, and hostname
+    The function must receive an object of the type CiscoAsaSSH as parameter
+    and will add the hardware model, software version, and hostname as parameters
+    to the objected passed to the function.
+    """
     shver = send_command('show ver',device)
     for i in shver:
         if 'Hardware' in i:

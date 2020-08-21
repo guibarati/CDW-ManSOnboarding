@@ -1,7 +1,35 @@
+"""
+Module Name: main.py
+Author: Arlo Hollingshad & Gui Barati
+Version Number: 0.1
+Language Version: 3.6+
+Description of Module:
+This module creates an inventory of devices to be probed through manual imput or CSV file.
+For every device in the inventory it colects the hardware model, software version, and hostname.
+The information is saved on a CSV file in the local directory
+Application flow is:
+load_inventory() -> determines if user wants to load a file or manual information about devices.
+                 -> calls appropriate function to load information manually or via CSV
+                 -> Outputs a list of dictionaries. Each dictionary is a device with IP and credentials
+
+create_report() -> Iterates through the list of dictionaries.
+                -> for each item it calls the get_device_info() function to collect the devices information
+                -> Information is added to new CSV file saved to local directory
+
+get_device_info() -> Uses the appropriate device_control module to collect iformation from the device for
+                     hardware model, softare version, hostname
+
+"""
+
+
 from getpass import getpass
 import csv, asa_control
 
 def load_inventory_manually():
+    """
+    This function prompts the user to manually enter device information
+    and outputs a list of dictionaries with the device information
+    """
     device_type = input('Enter the device type: ')
     host_address = input('Enter the host address: ')
     username = input('Enter the username: ')
