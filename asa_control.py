@@ -38,6 +38,10 @@ def send_command(command: str, device: cisco.CiscoAsaSSH) -> list:
     output = device.send_command(command)
     return output.split('\n')
 
+def get_hostname(device):
+    prompt = device.find_prompt()
+    hostname = prompt.split('#')[0]
+    return hostname
 
 def show_ver(device: cisco.CiscoAsaSSH):
     """
@@ -53,7 +57,6 @@ def show_ver(device: cisco.CiscoAsaSSH):
             device.hardware_model = i.split()[1].split(',')[0]
         if 'Software Version' in i:
             device.software_version = i.split()[-1]
-        if 'mins' in i:
-            device.hostname = i.split()[0]
+    device.hostname = get_hostname(device)
     
 

@@ -25,6 +25,7 @@ get_device_info() -> Uses the appropriate device_control module to collect iform
 from getpass import getpass
 import csv, asa_control
 
+
 def load_inventory_manually():
     """
     This function prompts the user to manually enter device information
@@ -39,14 +40,16 @@ def load_inventory_manually():
 
 
 def load_inventory_file():
-   inv_file = input('\n\nEnter the CSV file containing the discovery hosts')
+   print('Supported file type is CSV. Expected headers below must be in the same order and are case sensitive:')
+   print(' dev_type, host, user, pass ')
+   inv_file = input('\n\nEnter the CSV file containing the discovery hosts: ')
    output = []
    with open(inv_file,'r') as f:
        reader = csv.DictReader(f)
        for row in reader:
            output.append(row)
    return output
-               
+
 
 def load_inventory():
     method = ''
@@ -63,9 +66,9 @@ def get_device_info(dev_type,host,user,password):
     if dev_type.lower() == 'asa':
         fw = asa_control.connect(host,user,password)
         asa_control.show_ver(fw)   
-    output = {'hardware':fw.hardware_model, 'software':fw.software_version, 'hostname':fw.hostname}
+    output = {'hardware':fw.hardware_model, 'software':fw.software_version,'hostname':fw.hostname}
     return output
-    
+
 
 def create_report(inventory):
     i = 1
@@ -79,5 +82,16 @@ def create_report(inventory):
             device_info = get_device_info(device['dev_type'],device['host'],device['user'],device['pass'])
             print(device_info)
             writer.writerow(device_info)
-            
-        
+
+
+def main():
+    inv = load_inventory()
+    create_report(inv)
+
+
+if __name__ == '__main__':
+    try:
+        main()
+    except (KeyboardInterrupt, EOFError):
+        print("User cancelled script execution.")
+
