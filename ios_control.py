@@ -4,7 +4,7 @@ Author: Arlo Hollingshad & Gui Barati
 Version Number: 0.1
 Language Version: 3.6+
 Description of Module:
-This function establishes an SSH connection with the ASA object,
+This function establishes an SSH connection with the IOS(router/switch) object,
 issues the "show ver" command and parses the result
 
 """
@@ -16,20 +16,20 @@ from netmiko import ConnectHandler, cisco, ssh_exception
 class AuthFail(Exception):
     pass
 
-
 def connect(host,username,password) -> cisco.CiscoAsaSSH:
     """
     This function uses netmiko to connect to a remote device over SSH.
     :SSH keys are not supported at this time
     :return: netmiko CiscoAsaSSH object with SSH connection to remote device
     """
-    asa = {'device_type': 'cisco_asa', 'host': host, 'username': username, 'password': password}
+    ios = {'device_type': 'cisco_ios', 'host': host, 'username': username, 'password': password}
     try:
-        device = ConnectHandler(**asa)
+        device = ConnectHandler(**ios)
     except ssh_exception.NetmikoTimeoutException:
         raise ConnectionError('Unable to connect')
     except ssh_exception.NetmikoAuthenticationException:
         raise AuthFail('Invalid Credentials')
+    
     return device
 
 
@@ -59,12 +59,22 @@ def show_ver(device: cisco.CiscoAsaSSH):
     and will add the hardware model, software version, and hostname as parameters
     to the objected passed to the function.
     """
+    j = 0
     shver = send_command('show ver',device)
-    for i in shver:
-        if 'Hardware' in i:
-            device.hardware_model = i.split()[1].split(',')[0]
-        if 'Software Version' in i:
-            device.software_version = i.split()[-1]
+    if 'NX-OS' not in shver[0]:
+        device.software_version = shver[0].split('Version')[1].split(',')[0]
+    else:
+        for i in shver:
+            if 'System version' in i:
+                device.software_version = i.split(':')[1]
     device.hostname = get_hostname(device)
+    hardware = (send_command('show inventory',device))
+    for i in hardware:
+        if 'PID' in i and j == 0:
+            device.hardware_model = i.split()[1]
+            j = 1
+        
+
+    
     
 

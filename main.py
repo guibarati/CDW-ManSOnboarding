@@ -23,8 +23,8 @@ get_device_info() -> Uses the appropriate device_control module to collect iform
 
 
 from getpass import getpass
-import csv, asa_control
-
+#from netmiko import ConnectHandler
+import csv, asa_control, ios_control
 
 def load_inventory_manually():
     """
@@ -63,27 +63,34 @@ def load_inventory():
 
 
 def get_device_info(dev_type,host,user,password):
-    if dev_type.lower() == 'asa':
-        fw = asa_control.connect(host,user,password)
-        asa_control.show_ver(fw)   
-    output = {'hardware':fw.hardware_model, 'software':fw.software_version,'hostname':fw.hostname}
+    try:
+        if dev_type.lower() == 'asa':
+            fw = asa_control.connect(host,user,password)
+            asa_control.show_ver(fw)
+        if dev_type.lower() == 'ios':
+            fw = ios_control.connect(host,user,password)
+            ios_control.show_ver(fw)
+
+        output = {'hardware':fw.hardware_model, 'software':fw.software_version,'hostname':fw.hostname,'device_IP':host}
+    except ConnectionError:
+        output = {'hardware':'ConnectionError', 'software':'ConnectionError','hostname':host,'device_IP':host}
+    except ios_control.AuthFail:
+        output = {'hardware':'AuthFail', 'software':'AuthFail','hostname':host,'device_IP':host}
+    except asa_control.AuthFail:
+        output = {'hardware':'AuthFail', 'software':'AuthFail','hostname':host,'device_IP':host}
     return output
 
 
 def create_report(inventory):
     i = 1
     with open('report.csv', 'w') as file:
-        fieldnames = ['hardware','software','hostname']
+        fieldnames = ['hardware','software','hostname','device_IP']
         writer = csv.DictWriter(file,fieldnames)
         writer.writeheader()
         for device in inventory:
             print('Probing device ', i, ' of ',len(inventory))
             i = i + 1
-            try:
-                device_info = get_device_info(device['dev_type'],device['host'],device['user'],device['pass'])
-            except ssh_exception.NetmikoTimeoutException:
-                device_info ={'hardware':'connection failed', 'software':'connection failed','hostname':device['host']}
-            print(device_info)
+            device_info = get_device_info(device['dev_type'],device['host'],device['user'],device['pass'])
             writer.writerow(device_info)
 
 
