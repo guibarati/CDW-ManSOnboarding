@@ -51,20 +51,20 @@ def get_hostname(device):
     hostname = prompt.split('#')[0].split('>')[0]
     return hostname
 
-def show_ver(device: cisco.CiscoAsaSSH):
-    """
-    Calls the 'send_command' function and parses the result to extract
-    hardware model, software version, and hostname
-    The function must receive an object of the type CiscoAsaSSH as parameter
-    and will add the hardware model, software version, and hostname as parameters
-    to the objected passed to the function.
-    """
+def get_software_version(device):
+    output = {}
     shver = send_command('show ver',device)
     for i in shver:
         if 'Hardware' in i:
-            device.hardware_model = i.split()[1].split(',')[0]
+            output['hardware'] = (i.split()[1].split(',')[0])
         if 'Software Version' in i:
-            device.software_version = i.split()[-1]
+            output['software'] = (i.split()[-1])
+    return output
+
+def get_info(device: cisco.CiscoAsaSSH):
+    shver = get_software_version(device)
+    device.hardware_model = shver['hardware']
+    device.software_version = shver['software']
     device.hostname = get_hostname(device)
     
 
