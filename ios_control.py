@@ -29,7 +29,6 @@ def connect(host,username,password) -> cisco.CiscoAsaSSH:
         raise ConnectionError('Unable to connect')
     except ssh_exception.NetmikoAuthenticationException:
         raise AuthFail('Invalid Credentials')
-    
     return device
 
 
@@ -55,31 +54,36 @@ def get_hostname(device):
 
 def get_software_version(device):
     shver = send_command('show ver',device)
-    if 'NX-OS' not in shver[0]:
-        software_version = shver[0].split('Version')[1].split(',')[0]
-    else:
+    if 'Nexus' in shver[0]:
         for i in shver:
             if 'System version' in i:
                 software_version = i.split(':')[1]
+    if 'Version' in shver[0]:
+        software_version = shver[0].split('Version')[1].split(',')[0]
     return software_version
 
 
-def get_hardware_model(device):
+def get_show_inventory(device):
     j = 0
+    output = {}
     hardware = (send_command('show inventory',device))
     for i in hardware:
         if 'PID' in i and j == 0:
             hardware_model = i.split()[1]
+            serial_num = i.split('SN:')[1]
             j = 1
-    return hardware_model
+            output['hardware'] = hardware_model
+            output['serial'] = serial_num
+    return output
 
 
 def get_info(device: cisco.CiscoAsaSSH):
     device.software_version = get_software_version(device)
     device.hostname = get_hostname(device)
-    device.hardware_model = get_hardware_model(device)
+    shinv = get_show_inventory(device)
+    device.hardware_model = shinv['hardware']
+    device.serial_num = shinv['serial']
 
-        
 
     
     

@@ -61,10 +61,27 @@ def get_software_version(device):
             output['software'] = (i.split()[-1])
     return output
 
+
+def get_show_inventory(device):
+    j = 0
+    output = {}
+    hardware = (send_command('show inventory',device))
+    for i in hardware:
+        if 'PID' in i and j == 0:
+            hardware_model = i.split()[1]
+            serial_num = i.split('SN:')[1]
+            j = 1
+            output['hardware'] = hardware_model
+            output['serial'] = serial_num
+    return output
+
+
 def get_info(device: cisco.CiscoAsaSSH):
     shver = get_software_version(device)
-    device.hardware_model = shver['hardware']
     device.software_version = shver['software']
+    shinv = get_show_inventory(device)
+    device.serial_num = shinv['serial']
+    device.hardware_model = shinv['hardware']
     device.hostname = get_hostname(device)
     
 

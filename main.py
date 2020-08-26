@@ -75,7 +75,9 @@ def get_device_info(dev_type,host,user,password):
             device = ios_control.connect(host,user,password)
             ios_control.get_info(device)
 
-        output = {'hardware':device.hardware_model, 'software':device.software_version,'hostname':device.hostname,'device_IP':host}
+        output = {'hardware':device.hardware_model, 'software':device.software_version,'hostname':device.hostname,\
+                  'serial':device.serial_num,'device_IP':host}
+        
     except ConnectionError:
         output = {'hardware':'ConnectionError', 'software':'ConnectionError','hostname':host,'device_IP':host}
     except ios_control.AuthFail:
@@ -88,7 +90,7 @@ def get_device_info(dev_type,host,user,password):
 def create_report(inventory):
     i = 1
     with open('report.csv', 'w') as file:
-        fieldnames = ['hardware','software','hostname','device_IP']
+        fieldnames = ['hardware','software','hostname','serial','device_IP']
         writer = csv.DictWriter(file,fieldnames)
         writer.writeheader()
         for device in inventory:
