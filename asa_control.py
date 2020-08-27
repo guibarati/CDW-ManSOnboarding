@@ -12,9 +12,7 @@ issues the "show ver" command and parses the result
 
 from sys import exit as sys_exit
 from netmiko import ConnectHandler, cisco, ssh_exception
-
-class AuthFail(Exception):
-    pass
+from exceptions import AuthFail
 
 
 def connect(host,username,password) -> cisco.CiscoAsaSSH:

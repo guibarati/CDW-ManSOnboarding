@@ -23,8 +23,9 @@ get_device_info() -> Uses the appropriate device_control module to collect iform
 
 
 from getpass import getpass
-#from netmiko import ConnectHandler
 import csv, asa_control, ios_control
+from exceptions import AuthFail
+
 
 def load_inventory_manually():
     """
@@ -79,11 +80,9 @@ def get_device_info(dev_type,host,user,password):
                   'serial':device.serial_num,'device_IP':host}
         
     except ConnectionError:
-        output = {'hardware':'ConnectionError', 'software':'ConnectionError','hostname':host,'device_IP':host}
-    except ios_control.AuthFail:
-        output = {'hardware':'AuthFail', 'software':'AuthFail','hostname':host,'device_IP':host}
-    except asa_control.AuthFail:
-        output = {'hardware':'AuthFail', 'software':'AuthFail','hostname':host,'device_IP':host}
+        output = {'hardware':'ConnectionError', 'software':'ConnectionError','hostname':'ConnectionError','device_IP':host}
+    except AuthFail:
+        output = {'hardware':'AuthFail', 'software':'AuthFail','hostname':'AuthFail','device_IP':host}
     return output
 
 
