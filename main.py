@@ -23,7 +23,7 @@ get_device_info() -> Uses the appropriate device_control module to collect iform
 
 
 from getpass import getpass
-import csv, asa_control, ios_control
+import csv, sys, asa_control, ios_control
 from exceptions import AuthFail
 
 
@@ -44,11 +44,14 @@ def load_inventory_manually():
     return output
 
 
-def load_inventory_file():
-   print('\n\nSupported file type is CSV. Expected headers below must be in the same order and are case sensitive:')
-   print(' dev_type, host, user, pass ')
-   inv_file = input('\nEnter the CSV file containing the discovery hosts: ')
-   output = []
+def load_inventory_file(file=''):
+   output = [] 
+   if file == '':
+       print('\n\nSupported file type is CSV. Expected headers below must be in the same order and are case sensitive:')
+       print(' dev_type, host, user, pass ')
+       inv_file = input('\nEnter the CSV file containing the discovery hosts: ')
+   else:
+       inv_file = file 
    with open(inv_file,'r') as f:
        reader = csv.DictReader(f)
        for row in reader:
@@ -101,7 +104,11 @@ def create_report(inventory):
 
 
 def main():
-    inv = load_inventory()
+    if len(sys.argv) > 1:
+        inv = load_inventory_file(sys.argv[1])
+        print('using CSV file ', sys.argv[1])
+    else:    
+        inv = load_inventory()
     create_report(inv)
 
 
