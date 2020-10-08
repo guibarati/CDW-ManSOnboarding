@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """
 Module Name: main.py
 Author: Arlo Hollingshad & Gui Barati
@@ -79,11 +80,23 @@ def get_device_info(dev_type,host,user,password):
             device = ios_control.connect(host,user,password)
             ios_control.get_info(device)
 
-        output = {'hardware':device.hardware_model, 'software':device.software_version,'hostname':device.hostname,\
-                  'serial':device.serial_num,'device_IP':host}
+        if device.protocol:
+            protocol_used = device.protocol
+        else:
+            protocol_used = None
+        ip_interfaces = ios_control.get_ip_interfaces(device)
+        management_interface = [i['interface'] for i in ip_interfaces if i['ip_address'] == host]
+
+        output = {'hardware':device.hardware_model,
+                  'software':device.software_version,
+                  'hostname':device.hostname,
+                  'serial':device.serial_num,
+                  'device_IP':host,
+                  'management_interface':management_interface[0],
+                  'protocol': (device.protocol if device.protocol else None)}
         
-    except ConnectionError:
-        output = {'hardware':'ConnectionError', 'software':'ConnectionError','hostname':'ConnectionError','device_IP':host}
+    except ConnectionError as c:
+        output = {'hostname':c,'device_IP':host, 'hardware':"",'serial':"",'software':""}
     except AuthFail:
         output = {'hardware':'AuthFail', 'software':'AuthFail','hostname':'AuthFail','device_IP':host}
     return output
@@ -92,7 +105,8 @@ def get_device_info(dev_type,host,user,password):
 def create_report(inventory):
     i = 1
     with open('report.csv', 'w') as file:
-        fieldnames = ['hardware','software','hostname','serial','device_IP']
+        #fieldnames = ['hardware','software','hostname','serial','device_IP','protocol']
+        fieldnames = ['hostname','device_IP','hardware','serial','management_interface','software','protocol']
         writer = csv.DictWriter(file,fieldnames)
         writer.writeheader()
         for device in inventory:
