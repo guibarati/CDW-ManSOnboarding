@@ -17,15 +17,36 @@ create_report() -> Iterates through the list of dictionaries.
                 -> for each item it calls the get_device_info() function to collect the devices information
                 -> Information is added to new CSV file saved to local directory
 
-get_device_info() -> Uses the appropriate device_control module to collect iformation from the device for
+get_device_info() -> Uses the appropriate device_control module to collect information from the device for
                      hardware model, softare version, hostname
 
 """
 
 
 from getpass import getpass
-import csv, sys, asa_control, ios_control
+import csv, sys, ios_control
 from exceptions import AuthFail
+import argparse
+import logging
+import re
+
+comment_pattern = re.compile(r'\s*#.*$')
+
+
+def skip_comments(lines):
+    """
+    A filter which skips/strips the comments and processes the rest of the lines
+
+    :param lines: any object which can be iterated through such as a file
+        object, list, tuple, or generator
+    """
+
+    global comment_pattern
+
+    for line in lines:
+        line = re.sub(comment_pattern, '', line).strip()
+        if line:
+            yield line
 
 
 def load_inventory_manually():
@@ -54,7 +75,7 @@ def load_inventory_file(file=''):
    else:
        inv_file = file 
    with open(inv_file,'r') as f:
-       reader = csv.DictReader(f)
+       reader = csv.DictReader(skip_comments(f))
        for row in reader:
            output.append(row)
    return output
@@ -73,19 +94,17 @@ def load_inventory():
 
 def get_device_info(dev_type,host,user,password):
     try:
-        if dev_type.lower() == 'asa':
-            device = asa_control.connect(host,user,password)
-            asa_control.get_info(device)
-        if dev_type.lower() == 'ios':
-            device = ios_control.connect(host,user,password)
-            ios_control.get_info(device)
+#        if dev_type.lower() == 'asa':
+#            device = asa_control.connect(host,user,password)
+#            asa_control.get_info(device)
+#        if dev_type.lower() == 'ios':
+        device = ios_control.connect(dev_type,host,user,password)
+        ios_control.get_info(device)
 
-        if device.protocol:
-            protocol_used = device.protocol
-        else:
-            protocol_used = None
-        ip_interfaces = ios_control.get_ip_interfaces(device)
+        # Try to find the management interface given the device IP
+        ip_interfaces = ios_control.get_ip_interfaces(device,dev_type)
         management_interface = [i['interface'] for i in ip_interfaces if i['ip_address'] == host]
+        logging.info(management_interface)
 
         output = {'hardware':device.hardware_model,
                   'software':device.software_version,
@@ -105,25 +124,50 @@ def get_device_info(dev_type,host,user,password):
 def create_report(inventory):
     i = 1
     with open('report.csv', 'w') as file:
-        #fieldnames = ['hardware','software','hostname','serial','device_IP','protocol']
         fieldnames = ['hostname','device_IP','hardware','serial','management_interface','software','protocol']
         writer = csv.DictWriter(file,fieldnames)
         writer.writeheader()
         for device in inventory:
             print('Probing device ', i, ' of ',len(inventory))
             i = i + 1
+            logging.info("Device Type:" + device['dev_type'])
+            logging.info("Device:" + device['host'])
+            logging.debug("Device Username:" + device['user'])
+            logging.debug("Device Password:" + device['pass'])
             device_info = get_device_info(device['dev_type'],device['host'],device['user'],device['pass'])
-            print(device_info)
             writer.writerow(device_info)
 
 
 def main():
-    if len(sys.argv) > 1:
-        inv = load_inventory_file(sys.argv[1])
-        print('using CSV file ', sys.argv[1])
-    else:    
-        inv = load_inventory()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-f", "--file", help="/path/to/csv input file")
+    parser.add_argument("-v", "--verbose", help="Print more verbose output", action="count", default=1)
+    args = parser.parse_args()
+    args.verbose = 40 - (10*args.verbose) if args.verbose > 0 else 0
+
+    logging.basicConfig(level=args.verbose, format='%(asctime)s %(levelname)s: %(message)s',
+                    datefmt='%Y-%m-%d %H:%M:%S')
+
+#    logging.critical("I'm a CRITICAL message") # Numeric value = 50
+#    logging.error("I'm a ERROR message") # Numeric value = 40
+#    logging.warning("I'm a WARNING message") # Numeric value = 30
+#    logging.info("I'm a INFO message") # Numeric value = 20
+#    logging.debug("I'm a DEBUG message") # Numeric value = 10
+ 
+    if args.file:
+        inv = load_inventory_file(args.file)
+    else:
+        exit()
+        #inv = load_inventory()
+
     create_report(inv)
+
+#    if len(sys.argv) > 1:
+#        inv = load_inventory_file(sys.argv[1])
+#        print('using CSV file ', sys.argv[1])
+#    else:    
+#        inv = load_inventory()
+#    create_report(inv)
 
 
 if __name__ == '__main__':
@@ -131,4 +175,3 @@ if __name__ == '__main__':
         main()
     except (KeyboardInterrupt, EOFError):
         print("User cancelled script execution.")
-

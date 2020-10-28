@@ -12,31 +12,35 @@ issues the "show ver" command and parses the result
 import re
 from sys import exit as sys_exit
 from netmiko import ConnectHandler, cisco, ssh_exception
+from netmiko.ssh_exception import NetMikoAuthenticationException
+from paramiko.ssh_exception import AuthenticationException
 from exceptions import AuthFail
 
 
-def connect(host,username,password) -> cisco.CiscoAsaSSH:
+def connect(dev_type,host,username,password) -> cisco.CiscoAsaSSH:
     """
     This function uses netmiko to connect to a remote device over SSH.
     If SSH fails, then try telnet
     :SSH keys are not supported at this time
     :return: netmiko CiscoAsaSSH object with SSH connection to remote device
     """
-    ios_ssh = {'device_type': 'cisco_ios_ssh', 'host': host, 'username': username, 'password': password}
-    ios_telnet = {'device_type': 'cisco_ios_telnet', 'host': host, 'username': username, 'password': password}
+    ssh = {'device_type': dev_type + '_ssh', 'host': host, 'username': username, 'password': password}
+    telnet = {'device_type': dev_type + '_telnet', 'host': host, 'username': username, 'password': password}
     try: 
         # Try to SSH to the device
-        device = ConnectHandler(**ios_ssh)
+        device = ConnectHandler(**ssh)
     except ssh_exception.NetMikoTimeoutException as t_err:
         # IF SSH fails, try telnet
         try:
-            device = ConnectHandler(**ios_telnet)
+            device = ConnectHandler(**telnet)
         except:
             # If neither SSH nor Telnet work, raise an exception and move on
             #raise ConnectionError(t_err.args[0])
             raise ConnectionError('Could not connect with SSH or Telnet')
-    except ssh_exception.NetMikoAuthenticationException as au_err:
+    except (AuthenticationException, NetMikoAuthenticationException) as au_err:
         raise AuthFail(au_err.args[0])
+    except Exception as e:
+        print(e)
     return device
 
 
@@ -61,30 +65,54 @@ def get_hostname(device):
 
 
 def get_software_version(device):
+    output = {}
     shver = send_command('show ver',device)
-    if 'Nexus' in shver[0]:
-        for i in shver:
-            if 'System version' in i:
-                software_version = i.split(':')[1].strip()
-    if 'Version' in shver[0]:
-        software_version = shver[0].split('Version')[1].split(',')[0].strip()
-    return software_version
+    for i in shver:
+#        if 'Hardware' in i:
+#            output['hardware'] = (i.split()[1].split(',')[0])
+        # Check for ASA
+        if 'Software Version' in i:
+            output = (i.split()[-1])
+        # Check for NX-OS
+        if 'Nexus' in shver[0]:
+            for i in shver:
+                if 'System version' in i:
+                    output = i.split(':')[1].strip()
+        # For IOS/IOS-XE
+        if 'Version' in shver[0]:
+            output = shver[0].split('Version')[1].split(',')[0].strip()
+    return output
 
-def get_ip_interfaces(device):
-    # this regex is to match for gigabit, ethernet, fastethernet and loopback.
-    intf_pattern = "^[lLgGeEfF]\S+[0-9]/?[0-9]*"
+def get_ip_interfaces(device, dev_type):
+    # this regex is to match for gigabit, ethernet, fastethernet, management, port-channel, BVI, and loopback.
+    intf_pattern = "^[lLgGeEfFpPmMbB]\S+[0-9]/?[0-9]*"
     # create a regex object with the pattern in place
     regex = re.compile(intf_pattern)
     # create an empty list
     interfaces = []
 
-    output = send_command('show ip interface brief', device)
-    type(output)
-    for row in output:
-        # check for interface names only
-        if regex.search(row):
-        # start collecting the dictionary
-            interfaces.append(
+    # Why do we need to check for device type? Because Cisco that's why....
+    if dev_type == 'cisco_asa':
+        output = send_command('show int ip bri', device)
+    else:
+        output = send_command('show ip interface brief', device)
+
+    if dev_type == 'cisco_nxos':
+        for row in output:
+            # check for interface names only
+            if regex.search(row):
+            # start collecting the dictionary
+                interfaces.append(
+                    {'interface': row.split()[0],
+                     'ip_address': row.split()[1],
+                     'status': row.split()[2]}
+                )
+    else:
+        for row in output:
+            # check for interface names only
+            if regex.search(row):
+            # start collecting the dictionary
+                interfaces.append(
                 {'interface': row.split()[0],
                  'ip_address': row.split()[1],
                  'ok': row.split()[2],
@@ -92,7 +120,6 @@ def get_ip_interfaces(device):
                  'status': row.split()[4],
                  'protocol': row.split()[5]}
             )
-
     return interfaces
 
 
@@ -116,7 +143,4 @@ def get_info(device: cisco.CiscoAsaSSH):
     shinv = get_show_inventory(device)
     device.hardware_model = shinv['hardware']
     device.serial_num = shinv['serial']
-
-    
-    
 
